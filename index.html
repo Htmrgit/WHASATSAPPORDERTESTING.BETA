@@ -301,15 +301,12 @@
             text-overflow: ellipsis;
         }
 
-        /* Variant Button Styling */
-        .variant-button {
-            @apply px-3 py-1 text-sm rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700;
+        /* Variant Dropdown Styling */
+        .variant-select {
+            @apply block w-full px-3 py-1 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent;
         }
-        .variant-button.active {
-            @apply bg-orange-500 text-white border-orange-500 shadow-sm;
-        }
-        .variant-button:active { /* For tap feedback on mobile */
-            @apply bg-orange-600 border-orange-600 transform scale-95;
+        .variant-select:focus {
+            @apply ring-2 ring-orange-500 ring-opacity-50;
         }
 
         /* Add to Cart Button Styling */
@@ -420,9 +417,9 @@
             <div id="loading-spinner-container" class="flex justify-center items-center py-10 hidden">
                 <div class="spinner"></div>
             </div>
-            <!-- Changed from grid to flex column for single row item display -->
+            <!-- Menu items will be grouped by category here -->
             <div id="menu-items-container" class="flex flex-col gap-6">
-                <!-- Menu items will be loaded here by JavaScript -->
+                <!-- Categories and their items will be loaded here by JavaScript -->
                 <p id="error-message" class="col-span-full text-center text-red-600 dark:text-red-400 hidden">Failed to load menu. Please try again later.</p>
             </div>
         </div>
@@ -830,11 +827,12 @@
          * @returns {string} The HTML string for the menu item card.
          */
         function renderMenuItem(item) {
+            console.log(`renderMenuItem: Generating card for item ID: ${item.id}`); // Added debug log
+
             // Ensure item.variants is an array; if it's an empty string, treat as empty array
             const itemVariants = Array.isArray(item.variants)
                 ? item.variants
                 : (typeof item.variants === 'string' && item.variants === "" ? [] : item.variants);
-
 
             // Determine the initial price to display
             // If variants exist, use the price of the first variant.
@@ -845,17 +843,18 @@
 
             console.log(`Rendering item ${item.id}: Initial display price: ${initialDisplayPrice}`); // Debug log for initial price
 
-            // Generate variant buttons
-            const variantButtons = itemVariants.map(variant => `
-                <button
-                    class="variant-button px-3 py-1 text-sm rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700"
-                    data-item-id="${item.id}"
-                    data-variant-name="${variant.name}"
-                    onclick="selectVariant(this, '${item.id}', '${variant.name}')"
-                >
-                    ${variant.name}
-                </button>
-            `).join('');
+            let variantControlHtml = '';
+            if (itemVariants.length > 0) {
+                // Render as a dropdown
+                variantControlHtml = `
+                    <select class="variant-select" data-item-id="${item.id}" onchange="selectVariant(this, '${item.id}')">
+                        <option value="">Select a variant</option>
+                        ${itemVariants.map(variant => `
+                            <option value="${variant.name}" ${itemVariants[0].name === variant.name ? 'selected' : ''}>${variant.name}</option>
+                        `).join('')}
+                    </select>
+                `;
+            }
 
             // Placeholder image with item name if image URL is empty or invalid
             const imageUrl = item.image && item.image.startsWith('http')
@@ -863,7 +862,7 @@
                 : `https://placehold.co/600x400/FF7F50/FFFFFF?text=${encodeURIComponent(item.name)}`;
 
             return `
-                <div class="menu-item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-row items-center p-4" data-item-id="${item.id}">
+                <div class="menu-item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-row items-center p-4 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
                     <!-- Product Image -->
                     <div class="flex-shrink-0">
                         <img src="${imageUrl}" alt="${item.name}" class="menu-item-image w-28 h-28 sm:w-32 sm:h-32 rounded-lg object-cover">
@@ -875,9 +874,9 @@
                         <p class="menu-item-description text-gray-600 dark:text-gray-400 text-sm mb-3 flex-grow line-clamp-2" data-full-description="${item.description}">${item.description}</p>
                         ${item.description && item.description.length > 70 ? `<button class="text-orange-500 hover:underline text-xs font-semibold mt-1 self-start" onclick="toggleDescription(this)">Read More</button>` : ''}
 
-                        <!-- Variants Section -->
+                        <!-- Variants Section (Dropdown if variants exist, otherwise nothing) -->
                         <div class="menu-item-variants flex flex-wrap gap-2 mb-3 mt-2" data-item-id="${item.id}">
-                            ${variantButtons}
+                            ${variantControlHtml}
                         </div>
 
                         <!-- Price and Add to Cart -->
@@ -895,6 +894,7 @@
 
         /**
          * Filters and renders menu items based on search term and selected category.
+         * Groups items by category and displays them with headings.
          */
         function filterAndRenderMenuItems() {
             const filteredItems = menuItems.filter(item => {
@@ -906,35 +906,54 @@
 
             if (filteredItems.length === 0) {
                 menuItemsContainer.innerHTML = '<p class="col-span-full text-center text-gray-600 dark:text-gray-300 text-lg">No items found matching your criteria.</p>';
-            } else {
-                menuItemsContainer.innerHTML = filteredItems.map(renderMenuItem).join('');
-                // After rendering, ensure Lucide icons are created for new elements
-                lucide.createIcons();
-                // Re-apply active variant styles if any items are already in cart
-                cartItems.forEach(cartItem => {
-                    const menuItemCard = document.querySelector(`.menu-item-card[data-item-id="${cartItem.id}"]`);
-                    if (menuItemCard) {
-                        const variantButton = menuItemCard.querySelector(`.variant-button[data-variant-name="${cartItem.selectedVariant}"]`);
-                        if (variantButton) {
-                            // First, remove active from all variants for this item
-                            menuItemCard.querySelectorAll('.variant-button').forEach(btn => btn.classList.remove('active'));
-                            // Then, add active to the selected variant
-                            variantButton.classList.add('active');
-                            // Update price display for the selected variant
-                            const itemData = menuItems.find(item => item.id === cartItem.id);
-                            if (itemData) {
-                                // Ensure itemData.variants is an array
-                                const itemDataVariants = Array.isArray(itemData.variants)
-                                    ? itemData.variants
-                                    : (typeof itemData.variants === 'string' && itemData.variants === "" ? [] : itemData.variants);
+                return;
+            }
 
-                                const variantPrice = itemDataVariants.find(v => v.name === cartItem.selectedVariant)?.price;
-                                // Ensure variantPrice is a number before toFixed
-                                menuItemCard.querySelector('.menu-item-price').textContent = `&#8377;${(typeof variantPrice === 'number' ? variantPrice : itemData.price || 0).toFixed(2)}`;
-                            }
-                        }
+            // Group items by category
+            const groupedItems = filteredItems.reduce((acc, item) => {
+                const category = item.category || 'Uncategorized';
+                if (!acc[category]) {
+                    acc[category] = [];
+                }
+                acc[category].push(item);
+                return acc;
+            }, {});
+
+            let htmlContent = '';
+            for (const category in groupedItems) {
+                htmlContent += `
+                    <div class="category-group mb-8">
+                        <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">${category}</h3>
+                        <div class="flex flex-col gap-6">
+                            ${groupedItems[category].map(renderMenuItem).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            menuItemsContainer.innerHTML = htmlContent;
+
+            // After rendering, ensure Lucide icons are created for new elements
+            lucide.createIcons();
+
+            // Re-apply selected variant in dropdowns and update prices if items are in cart
+            cartItems.forEach(cartItem => {
+                const menuItemCard = document.querySelector(`.menu-item-card[data-item-id="${cartItem.id}"]`);
+                if (menuItemCard) {
+                    const variantSelect = menuItemCard.querySelector('.variant-select');
+                    if (variantSelect && cartItem.selectedVariant !== 'Default') {
+                        variantSelect.value = cartItem.selectedVariant;
+                        // Manually trigger the price update for the selected variant
+                        selectVariant(variantSelect, cartItem.id);
                     }
-                });
+                }
+            });
+
+            // Added debug log to check if item 18 is in DOM after rendering
+            const item18Card = document.querySelector(`.menu-item-card[data-item-id="18"]`);
+            if (item18Card) {
+                console.log('filterAndRenderMenuItems: Item 18 card found in DOM after rendering.');
+            } else {
+                console.log('filterAndRenderMenuItems: Item 18 card NOT found in DOM after rendering.');
             }
         }
 
@@ -989,7 +1008,7 @@
                         return item;
                     });
 
-                    // console.log('Processed menuItems:', menuItems); // For debugging: uncomment to see processed data
+                    console.log('Processed menuItems:', menuItems); // For debugging: uncomment to see processed data
 
                     // Extract categories from the menuItems
                     const uniqueCategories = new Set();
@@ -1021,56 +1040,54 @@
         // --- Variant Selection Logic ---
 
         /**
-         * Handles variant selection for a menu item.
-         * @param {HTMLElement} button - The clicked variant button element.
+         * Handles variant selection for a menu item (now supports dropdowns).
+         * @param {HTMLElement} sourceElement - The clicked button or changed select element.
          * @param {string} itemId - The ID of the item.
-         * @param {string} variantName - The name of the selected variant.
          */
-        function selectVariant(button, itemId, variantName) {
-            console.log(`selectVariant: item ID: ${itemId}, variant name: ${variantName}`); // Debug log
-            const itemCard = button.closest('.menu-item-card');
+        function selectVariant(sourceElement, itemId) {
+            let variantName;
+            if (sourceElement.tagName === 'SELECT') {
+                variantName = sourceElement.value;
+                console.log(`selectVariant: Dropdown changed for item ID: ${itemId}, selected variant: ${variantName}`);
+            } else {
+                // This path is for buttons, which are now removed for variant selection
+                variantName = sourceElement.dataset.variantName;
+                console.log(`selectVariant: Button clicked for item ID: ${itemId}, variant name: ${variantName}`);
+            }
+
+            const itemCard = sourceElement.closest('.menu-item-card');
             if (!itemCard) {
                 console.error('selectVariant: Item card not found.');
                 return;
             }
 
-            // Remove 'active' class from all variant buttons for this item
-            itemCard.querySelectorAll('.variant-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-
-            // Add 'active' class to the clicked button
-            button.classList.add('active');
-
-            // Find the item and variant data to update the displayed price
             const item = menuItems.find(i => i.id === itemId);
-            console.log('selectVariant: Found item in menuItems:', item); // Debug log
+            console.log('selectVariant: Found item in menuItems:', item);
 
             if (item) {
-                // Ensure item.variants is an array
                 const itemVariants = Array.isArray(item.variants)
                     ? item.variants
                     : (typeof item.variants === 'string' && item.variants === "" ? [] : item.variants);
 
                 const selectedVariantData = itemVariants.find(v => v.name === variantName);
-                console.log('selectVariant: Found selected variant data:', selectedVariantData); // Debug log
+                console.log('selectVariant: Found selected variant data:', selectedVariantData);
 
                 const priceElement = itemCard.querySelector('.menu-item-price');
-                let priceToDisplay = 0; // Default price
+                let priceToDisplay = 0;
 
                 if (selectedVariantData && typeof selectedVariantData.price === 'number') {
                     priceToDisplay = selectedVariantData.price;
                 } else if (typeof item.price === 'number') {
-                    // Fallback to base price if variant not found or price is invalid
                     priceToDisplay = item.price;
                 } else {
                     console.warn(`selectVariant: Price for item ${itemId} variant ${variantName} is undefined or not a number. Defaulting to 0.`);
                 }
-                console.log('selectVariant: Price to display (before DOM update):', priceToDisplay); // Debug log
+                console.log('selectVariant: Price to display (before DOM update):', priceToDisplay);
 
                 if (priceElement) {
-                    priceElement.textContent = `&#8377;${priceToDisplay.toFixed(2)}`;
-                    console.log('selectVariant: Price element updated to:', priceElement.textContent); // Debug log after DOM update
+                    // FIX: Changed textContent to innerHTML to correctly render the rupee symbol
+                    priceElement.innerHTML = `&#8377;${priceToDisplay.toFixed(2)}`;
+                    console.log('selectVariant: Price element updated to:', priceElement.innerHTML);
                 } else {
                     console.error('selectVariant: Price element not found in item card.');
                 }
@@ -1086,7 +1103,7 @@
          * @param {string} itemId - The ID of the item to add.
          */
         function addToCart(itemId) {
-            console.log(`addToCart: Adding to cart for itemId: ${itemId}`); // Debug log
+            console.log(`addToCart: Attempting to add item with ID: ${itemId}`); // Added debug log
             const itemCard = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
             if (!itemCard) {
                 showToast('Item card not found for this item.', 'error');
@@ -1095,53 +1112,52 @@
             }
 
             const itemDetails = menuItems.find(item => item.id === itemId);
-            console.log('addToCart: Item details for cart:', itemDetails); // Debug log
+            console.log('addToCart: Item details for cart:', itemDetails);
             if (!itemDetails) {
                 showToast('Item details not found in menu data.', 'error');
                 console.error('addToCart: Item details not found in menuItems array for itemId:', itemId);
                 return;
             }
 
-            const selectedVariantButton = itemCard.querySelector('.variant-button.active');
-            let selectedVariantName = 'Default'; // Default if no variants or none selected
+            let selectedVariantName = 'Default';
             let itemPrice;
 
-            // Ensure itemDetails.variants is an array
             const itemVariants = Array.isArray(itemDetails.variants)
                 ? itemDetails.variants
                 : (typeof itemDetails.variants === 'string' && itemDetails.variants === "" ? [] : itemDetails.variants);
 
-            if (selectedVariantButton) {
-                selectedVariantName = selectedVariantButton.dataset.variantName;
-                const selectedVariantData = itemVariants.find(v => v.name === selectedVariantName);
-
-                if (selectedVariantData && typeof selectedVariantData.price === 'number') {
-                    itemPrice = selectedVariantData.price;
-                } else if (typeof itemDetails.price === 'number') {
-                    // Fallback to base item price if variant price is missing/invalid
-                    itemPrice = itemDetails.price;
-                } else {
-                    itemPrice = 0; // Default if no valid price found
-                    console.warn(`addToCart: Price for item ${itemId} variant ${selectedVariantName} is undefined or not a number. Defaulting to 0.`);
-                }
-            } else {
-                // If no variant is selected
-                if (itemVariants.length > 0) {
-                    showToast('Please select a variant first!', 'warning');
-                    return; // Crucial: stop execution if variant is required but not selected
-                } else {
-                    // No variants, use base item price. Ensure it's a number.
-                    if (typeof itemDetails.price === 'number') {
-                        itemPrice = itemDetails.price;
+            if (itemVariants.length > 0) {
+                const variantSelect = itemCard.querySelector('.variant-select');
+                if (variantSelect) {
+                    selectedVariantName = variantSelect.value;
+                    if (!selectedVariantName) {
+                        showToast('Please select a variant first!', 'warning');
+                        return;
+                    }
+                    const selectedVariantData = itemVariants.find(v => v.name === selectedVariantName);
+                    if (selectedVariantData && typeof selectedVariantData.price === 'number') {
+                        itemPrice = selectedVariantData.price;
                     } else {
                         itemPrice = 0;
-                        console.warn(`addToCart: Price for item ${itemId} (no variants) is undefined or not a number. Defaulting to 0.`);
+                        console.warn(`addToCart: Price for item ${itemId} variant ${selectedVariantName} is undefined or not a number. Defaulting to 0.`);
                     }
+                } else {
+                    console.error('addToCart: Variant select dropdown not found for item with variants.');
+                    showToast('Error: Could not find variant selection.', 'error');
+                    return;
+                }
+            } else {
+                // No variants, use base item price.
+                if (typeof itemDetails.price === 'number') {
+                    itemPrice = itemDetails.price;
+                } else {
+                    itemPrice = 0;
+                    console.warn(`addToCart: Price for item ${itemId} (no variants) is undefined or not a number. Defaulting to 0.`);
                 }
             }
-            console.log('addToCart: Selected variant name for cart:', selectedVariantName); // Debug log
-            console.log('addToCart: Price determined for cart:', itemPrice); // Debug log
 
+            console.log('addToCart: Selected variant name for cart:', selectedVariantName);
+            console.log('addToCart: Price determined for cart:', itemPrice);
 
             const existingCartItemIndex = cartItems.findIndex(item =>
                 item.id === itemId && item.selectedVariant === selectedVariantName
