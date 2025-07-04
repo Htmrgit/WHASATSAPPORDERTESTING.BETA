@@ -436,7 +436,7 @@
                 </div>
                 <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <span class="text-xl font-bold text-gray-800 dark:text-white">Total:</span>
-                    <span id="cart-total" class="text-3xl font-extrabold text-orange-600 dark:text-orange-500">&#8377;0.00</span>
+                    <span id="cart-total" class="text-3xl font-extrabold text-orange-600 dark:text-orange-500">RS;0.00</span>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-4 mt-8">
                     <button id="clear-cart-button" class="flex-grow bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
@@ -827,7 +827,7 @@
          * @returns {string} The HTML string for the menu item card.
          */
         function renderMenuItem(item) {
-            console.log(`renderMenuItem: Generating card for item ID: ${item.id}`); // Added debug log
+            console.log(`[renderMenuItem] Generating card for item ID: ${item.id}`); // Added debug log
 
             // Ensure item.variants is an array; if it's an empty string, treat as empty array
             const itemVariants = Array.isArray(item.variants)
@@ -841,7 +841,7 @@
                 ? itemVariants[0].price
                 : (typeof item.price === 'number' ? item.price : 0); // Default to 0 if item.price is also not a number
 
-            console.log(`Rendering item ${item.id}: Initial display price: ${initialDisplayPrice}`); // Debug log for initial price
+            console.log(`[renderMenuItem] Item ${item.id}: Initial display price: ${initialDisplayPrice}`); // Debug log for initial price
 
             let variantControlHtml = '';
             if (itemVariants.length > 0) {
@@ -862,7 +862,7 @@
                 : `https://placehold.co/600x400/FF7F50/FFFFFF?text=${encodeURIComponent(item.name)}`;
 
             return `
-                <div class="menu-item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-row items-center p-4 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                <div class="menu-item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-row items-center p-4 transition-all duration-300 ease-in-out transform hover:scale-[1.02]" data-item-id="${item.id}">
                     <!-- Product Image -->
                     <div class="flex-shrink-0">
                         <img src="${imageUrl}" alt="${item.name}" class="menu-item-image w-28 h-28 sm:w-32 sm:h-32 rounded-lg object-cover">
@@ -948,13 +948,16 @@
                 }
             });
 
-            // Added debug log to check if item 18 is in DOM after rendering
-            const item18Card = document.querySelector(`.menu-item-card[data-item-id="18"]`);
-            if (item18Card) {
-                console.log('filterAndRenderMenuItems: Item 18 card found in DOM after rendering.');
-            } else {
-                console.log('filterAndRenderMenuItems: Item 18 card NOT found in DOM after rendering.');
-            }
+            // Added debug log to check if items are in DOM after rendering
+            console.log('[filterAndRenderMenuItems] Verifying rendered items in DOM...');
+            filteredItems.forEach(item => {
+                const renderedCard = document.querySelector(`.menu-item-card[data-item-id="${item.id}"]`);
+                if (renderedCard) {
+                    console.log(`[filterAndRenderMenuItems] Successfully rendered and found item ID: ${item.id}`);
+                } else {
+                    console.error(`[filterAndRenderMenuItems] ERROR: Item ID: ${item.id} was in filteredItems but its card was NOT found in DOM after rendering.`);
+                }
+            });
         }
 
         /**
@@ -1008,7 +1011,7 @@
                         return item;
                     });
 
-                    console.log('Processed menuItems:', menuItems); // For debugging: uncomment to see processed data
+                    console.log('[fetchMenuItems] Processed menuItems:', menuItems); // For debugging: uncomment to see processed data
 
                     // Extract categories from the menuItems
                     const uniqueCategories = new Set();
@@ -1029,7 +1032,7 @@
                 }
 
             } catch (error) {
-                console.error('Error fetching menu items:', error);
+                console.error('[fetchMenuItems] Error fetching menu items:', error);
                 errorMessage.classList.remove('hidden');
                 showToast(`Failed to load menu: ${error.message}. Please check your Google Apps Script deployment and data format.`, 'error');
             } finally {
@@ -1048,21 +1051,21 @@
             let variantName;
             if (sourceElement.tagName === 'SELECT') {
                 variantName = sourceElement.value;
-                console.log(`selectVariant: Dropdown changed for item ID: ${itemId}, selected variant: ${variantName}`);
+                console.log(`[selectVariant] Dropdown changed for item ID: ${itemId}, selected variant: ${variantName}`);
             } else {
                 // This path is for buttons, which are now removed for variant selection
                 variantName = sourceElement.dataset.variantName;
-                console.log(`selectVariant: Button clicked for item ID: ${itemId}, variant name: ${variantName}`);
+                console.log(`[selectVariant] Button clicked for item ID: ${itemId}, variant name: ${variantName}`);
             }
 
             const itemCard = sourceElement.closest('.menu-item-card');
             if (!itemCard) {
-                console.error('selectVariant: Item card not found.');
+                console.error('[selectVariant] Item card not found for source element.');
                 return;
             }
 
             const item = menuItems.find(i => i.id === itemId);
-            console.log('selectVariant: Found item in menuItems:', item);
+            console.log('[selectVariant] Found item in menuItems:', item);
 
             if (item) {
                 const itemVariants = Array.isArray(item.variants)
@@ -1070,7 +1073,7 @@
                     : (typeof item.variants === 'string' && item.variants === "" ? [] : item.variants);
 
                 const selectedVariantData = itemVariants.find(v => v.name === variantName);
-                console.log('selectVariant: Found selected variant data:', selectedVariantData);
+                console.log('[selectVariant] Found selected variant data:', selectedVariantData);
 
                 const priceElement = itemCard.querySelector('.menu-item-price');
                 let priceToDisplay = 0;
@@ -1080,19 +1083,19 @@
                 } else if (typeof item.price === 'number') {
                     priceToDisplay = item.price;
                 } else {
-                    console.warn(`selectVariant: Price for item ${itemId} variant ${variantName} is undefined or not a number. Defaulting to 0.`);
+                    console.warn(`[selectVariant] Price for item ${itemId} variant ${variantName} is undefined or not a number. Defaulting to 0.`);
                 }
-                console.log('selectVariant: Price to display (before DOM update):', priceToDisplay);
+                console.log('[selectVariant] Price to display (before DOM update):', priceToDisplay);
 
                 if (priceElement) {
                     // FIX: Changed textContent to innerHTML to correctly render the rupee symbol
                     priceElement.innerHTML = `&#8377;${priceToDisplay.toFixed(2)}`;
-                    console.log('selectVariant: Price element updated to:', priceElement.innerHTML);
+                    console.log('[selectVariant] Price element updated to:', priceElement.innerHTML);
                 } else {
-                    console.error('selectVariant: Price element not found in item card.');
+                    console.error('[selectVariant] Price element not found in item card.');
                 }
             } else {
-                console.error(`selectVariant: Item details not found in menuItems array for itemId: ${itemId}`);
+                console.error(`[selectVariant] Item details not found in menuItems array for itemId: ${itemId}`);
             }
         }
 
@@ -1103,19 +1106,20 @@
          * @param {string} itemId - The ID of the item to add.
          */
         function addToCart(itemId) {
-            console.log(`addToCart: Attempting to add item with ID: ${itemId}`); // Added debug log
+            console.log(`[addToCart] Attempting to add item with ID: ${itemId}`); // Added debug log
             const itemCard = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
+            console.log(`[addToCart] Query result for itemCard (ID: ${itemId}):`, itemCard); // Added debug log
             if (!itemCard) {
-                showToast('Item card not found for this item.', 'error');
-                console.error('addToCart: Item card not found for itemId:', itemId);
+                showToast('Item card not found for this item. Debug: Check console for ID mismatch.', 'error');
+                console.error(`[addToCart] Item card not found for itemId: ${itemId}. This means the DOM element with data-item-id="${itemId}" was not found.`);
                 return;
             }
 
             const itemDetails = menuItems.find(item => item.id === itemId);
-            console.log('addToCart: Item details for cart:', itemDetails);
+            console.log('[addToCart] Item details for cart:', itemDetails);
             if (!itemDetails) {
                 showToast('Item details not found in menu data.', 'error');
-                console.error('addToCart: Item details not found in menuItems array for itemId:', itemId);
+                console.error('[addToCart] Item details not found in menuItems array for itemId:', itemId);
                 return;
             }
 
@@ -1139,10 +1143,10 @@
                         itemPrice = selectedVariantData.price;
                     } else {
                         itemPrice = 0;
-                        console.warn(`addToCart: Price for item ${itemId} variant ${selectedVariantName} is undefined or not a number. Defaulting to 0.`);
+                        console.warn(`[addToCart] Price for item ${itemId} variant ${selectedVariantName} is undefined or not a number. Defaulting to 0.`);
                     }
                 } else {
-                    console.error('addToCart: Variant select dropdown not found for item with variants.');
+                    console.error('[addToCart] Variant select dropdown not found for item with variants.');
                     showToast('Error: Could not find variant selection.', 'error');
                     return;
                 }
@@ -1152,12 +1156,12 @@
                     itemPrice = itemDetails.price;
                 } else {
                     itemPrice = 0;
-                    console.warn(`addToCart: Price for item ${itemId} (no variants) is undefined or not a number. Defaulting to 0.`);
+                    console.warn(`[addToCart] Price for item ${itemId} (no variants) is undefined or not a number. Defaulting to 0.`);
                 }
             }
 
-            console.log('addToCart: Selected variant name for cart:', selectedVariantName);
-            console.log('addToCart: Price determined for cart:', itemPrice);
+            console.log('[addToCart] Selected variant name for cart:', selectedVariantName);
+            console.log('[addToCart] Price determined for cart:', itemPrice);
 
             const existingCartItemIndex = cartItems.findIndex(item =>
                 item.id === itemId && item.selectedVariant === selectedVariantName
