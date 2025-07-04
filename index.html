@@ -1362,12 +1362,15 @@
                 if (item.selectedVariant !== 'Default') {
                     orderDetails += ` (${item.selectedVariant})`;
                 }
-                orderDetails += ` @ &#8377;${item.price.toFixed(2)} each\n`;
+                orderDetails += ` @ ₹${item.price.toFixed(2)} each\n`; // FIX: Changed &#8377; to ₹ here
             });
-            orderDetails += `\n*Total:* &#8377;${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}\n`;
+            orderDetails += `\n*Total:* ₹${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}\n`; // FIX: Changed &#8377; to ₹ here
             orderDetails += `\nThank you for your order!`;
 
-            const whatsappUrl = `https://wa.me/+919910109626?text=${encodeURIComponent(orderDetails)}`;
+            // Replace HTML entity with actual Rupee symbol before encoding for WhatsApp
+            const encodedOrderDetails = encodeURIComponent(orderDetails.replace(/&#8377;/g, '₹'));
+
+            const whatsappUrl = `https://wa.me/+919910109626?text=${encodedOrderDetails}`;
             window.open(whatsappUrl, '_blank');
 
             // Save order to history
