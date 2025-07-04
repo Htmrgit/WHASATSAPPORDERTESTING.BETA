@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepanshu Restaurant - Order Online</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for the app */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding-top: 4rem; /* Space for fixed header (shorter header) */
+            padding-bottom: 5rem; /* Space for fixed bottom navigation */
+            background-color: #f9fafb; /* Light gray background */
+            color: #1f2937; /* Dark text */
+        }
+        .dark body {
+            background-color: #111827; /* Dark background */
+            color: #f9fafb; /* Light text */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            height: 4rem; /* Fixed height for header */
+            display: flex;
+            align-items: center;
+        }
+        .dark .header {
+            background-color: #1f2937;
+            border-bottom-color: #374151;
+            box-shadow: 0 1px 3px 0 rgba(255, 255, 255, 0.1), 0 1px 2px 0 rgba(255, 255, 255, 0.06);
+        }
+        .mobile-menu-drawer {
+            display: none;
+            position: fixed; /* Keep it fixed */
+            top: 4rem; /* Below the header */
+            left: 0;
+            width: 100%;
+            height: calc(100% - 4rem - 5rem); /* Fill space between header and bottom nav */
+            overflow-y: auto; /* Allow scrolling for long menus */
+            z-index: 999; /* Below header, above main content */
+        }
+        .mobile-menu-drawer.open {
+            display: block;
+        }
+
+        /* Bottom Navigation Bar */
+        .bottom-nav {
+            background-color: #ffffff;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.1), 0 -1px 2px 0 rgba(0, 0, 0, 0.06);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-around;
+            padding: 0.5rem 0;
+        }
+        .dark .bottom-nav {
+            background-color: #1f2937;
+            border-top-color: #374151;
+            box-shadow: 0 -1px 3px 0 rgba(255, 255, 255, 0.1), 0 -1px 2px 0 rgba(255, 255, 255, 0.06);
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            color: #6b7280; /* Gray 500 */
+        }
+        .dark .bottom-nav-item {
+            color: #9ca3af; /* Gray 400 */
+        }
+        .bottom-nav-item.active {
+            background-color: #fef2f2; /* Red 50 - subtle highlight */
+            color: #ef4444; /* Red 500 */
+        }
+        .dark .bottom-nav-item.active {
+            background-color: #450a0a; /* Red 900 - subtle highlight */
+            color: #f87171; /* Red 400 */
+        }
+        .bottom-nav-item span:first-child { /* Icon */
+            margin-bottom: 0.1rem;
+        }
+        .bottom-nav-item span:last-child { /* Text label */
+            font-size: 0.75rem; /* text-xs */
+            line-height: 1;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 90%;
+            width: 500px;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-overlay.open .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .dark .modal-content {
+            background-color: #1f2937;
+        }
+
+        /* Category Modal Specific */
+        #category-modal-content {
+            max-height: 80vh; /* Limit height to prevent overflow on small screens */
+            overflow-y: auto; /* Enable scrolling if categories exceed height */
+        }
+        .category-button-item {
+            @apply flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer;
+        }
+
+        /* Toast Notifications (Add to Cart & General Info) */
+        .app-toast {
+            position: fixed;
+            bottom: 6rem; /* Above bottom nav */
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* Full rounded */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            z-index: 1100; /* Above bottom nav */
+            text-align: center;
+            min-width: 200px;
+        }
+        .app-toast.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .app-toast.success { background-color: rgba(34, 197, 94, 0.9); /* Green 500 */ }
+        .app-toast.error { background-color: rgba(239, 68, 68, 0.9); /* Red 500 */ }
+        .app-toast.info { background-color: rgba(59, 130, 246, 0.9); /* Blue 500 */ }
+        .app-toast.warning { background-color: rgba(251, 191, 36, 0.9); /* Yellow 400 */ }
+
+        /* Loading Spinner for Menu */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #f97316; /* Orange 500 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        .dark .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #fb923c; /* Orange 400 */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Review Star Rating - Not used for Google reviews, but kept for potential future use */
+        .star-rating {
+            display: inline-block;
+            direction: rtl; /* For right-to-left star display */
+        }
+        .star-rating input[type="radio"] {
+            display: none;
+        }
+        .star-rating label {
+            font-size: 1.5rem; /* Adjust star size */
+            color: #cbd5e1; /* Default gray star */
+            cursor: pointer;
+            padding: 0 0.1rem;
+            transition: color 0.2s ease;
+        }
+        .star-rating input[type="radio"]:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #fbbf24; /* Yellow for selected/hovered stars */
+        }
+        /* Ensure stars fill from left for LTR display but logic is RTL */
+        .star-rating label:hover ~ label {
+            color: #fbbf24;
+        }
+        .star-rating:hover label {
+            color: #cbd5e1; /* Reset on hover for entire group */
+        }
+        .star-rating input[type="radio"]:checked + label,
+        .star-rating input[type="radio"]:checked + label ~ label {
+            color: #fbbf24;
+        }
+
+        /* Confirmation Modal */
+        #confirmation-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2500; /* Higher than other modals */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #confirmation-modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        #confirmation-modal-content {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 90%;
+            width: 400px;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            text-align: center;
+        }
+        #confirmation-modal-overlay.open #confirmation-modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .dark #confirmation-modal-content {
+            background-color: #1f2937;
+        }
+
+        /* --- Custom Styles for Zomato/Swiggy Look --- */
+
+        /* Menu Item Card Styling */
+        .menu-item-card {
+            @apply bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .menu-item-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .menu-item-image {
+            @apply w-full h-48 sm:h-40 lg:h-48 object-cover; /* Fixed height for image, adjust as needed */
+        }
+
+        .menu-item-name {
+            @apply text-xl font-bold text-gray-900 dark:text-white mb-1;
+        }
+
+        .menu-item-description {
+            @apply text-gray-600 dark:text-gray-400 text-sm mb-3 flex-grow;
+        }
+
+        /* Variant Button Styling */
+        .variant-button {
+            @apply px-3 py-1 text-sm rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700;
+        }
+        .variant-button.active {
+            @apply bg-orange-500 text-white border-orange-500 shadow-sm;
+        }
+        .variant-button:active { /* For tap feedback on mobile */
+            @apply bg-orange-600 border-orange-600 transform scale-95;
+        }
+
+        /* Add to Cart Button Styling */
+        .add-to-cart-button {
+            @apply bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 flex items-center justify-center;
+        }
+        .add-to-cart-button:active { /* For tap feedback on mobile */
+            @apply transform scale-95;
+        }
+
+        /* Quantity Control Buttons in Cart */
+        .quantity-control-button {
+            @apply w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600;
+        }
+        .quantity-control-button:active {
+            @apply transform scale-90;
+        }
+
+        /* Cart Item Styling */
+        .cart-item {
+            @apply flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm;
+        }
+        .dark .cart-item {
+            @apply bg-gray-700;
+        }
+
+        /* Order History Item Styling */
+        .order-history-item {
+            @apply bg-gray-50 dark:bg-gray-700 rounded-xl shadow-sm p-4 mb-4;
+        }
+        .dark .order-history-item {
+            @apply bg-gray-700;
+        }
+
+        /* General Button Styling (for consistency) */
+        .btn-primary {
+            @apply bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50;
+        }
+        .btn-danger {
+            @apply bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50;
+        }
+    </style>
+</head>
+<body class="font-inter">
+    <!-- Header Section -->
+    <header class="header">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <!-- Restaurant Logo -->
+                <img src="https://placehold.co/40x40/FF7F50/FFFFFF?text=D" alt="Restaurant Logo" class="rounded-full" />
+                <!-- Restaurant Title -->
+                <h1 class="text-xl md:text-2xl font-bold text-orange-600 dark:text-orange-500">Deepanshu Restaurant</h1>
+            </div>
+
+            <!-- Mobile Menu Button (visible only on mobile) -->
+            <button id="mobile-menu-button" class="md:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle menu">
+                <span data-lucide="menu" class="w-6 h-6" id="menu-icon"></span>
+                <span data-lucide="x" class="w-6 h-6 hidden" id="close-icon"></span>
+            </button>
+        </div>
+
+        <!-- Mobile Navigation Drawer -->
+        <div id="mobile-menu-drawer" class="mobile-menu-drawer bg-white dark:bg-gray-800 pb-4 shadow-lg">
+            <nav class="flex flex-col gap-2 px-4 py-4">
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 active" data-page="menu">
+                    <span data-lucide="book-open" class="w-5 h-5"></span>
+                    <span>Menu</span>
+                </button>
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" data-page="cart">
+                    <span data-lucide="shopping-cart" class="w-5 h-5"></span>
+                    <span>Cart (<span id="mobile-cart-item-count-drawer">0</span>)</span>
+                </button>
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" data-page="order-history">
+                    <span data-lucide="history" class="w-5 h-5"></span>
+                    <span>Order History</span>
+                </button>
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" data-page="review">
+                    <span data-lucide="star" class="w-5 h-5"></span>
+                    <span>Review</span>
+                </button>
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" data-page="about">
+                    <span data-lucide="info" class="w-5 h-5"></span>
+                    <span>About</span>
+                </button>
+                <button class="nav-link flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" data-page="support">
+                    <span data-lucide="message-square" class="w-5 h-5"></span>
+                    <span>Support</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Menu Page -->
+        <div id="menu" class="page-content active">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">Our Delicious Menu</h2>
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <input type="text" id="search-input" placeholder="Search menu items..." class="flex-grow shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                <button id="category-button" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 flex items-center justify-center gap-2">
+                    <span data-lucide="tag" class="w-5 h-5"></span>
+                    Categories
+                </button>
+            </div>
+            <div id="loading-spinner-container" class="flex justify-center items-center py-10 hidden">
+                <div class="spinner"></div>
+            </div>
+            <div id="menu-items-container" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Menu items will be loaded here by JavaScript -->
+                <p id="error-message" class="col-span-full text-center text-red-600 dark:text-red-400 hidden">Failed to load menu. Please try again later.</p>
+            </div>
+        </div>
+
+        <!-- Cart Page -->
+        <div id="cart" class="page-content hidden">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">Your Cart</h2>
+            <div id="cart-empty-message" class="text-center text-lg text-gray-600 dark:text-gray-300 hidden">
+                Your cart is empty. Go to the <button class="text-orange-600 hover:underline" onclick="showPage('menu')">menu</button> to add some delicious food!
+            </div>
+            <div id="cart-content" class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 hidden">
+                <div id="cart-items-list" class="space-y-4">
+                    <!-- Cart items will be loaded here by JavaScript -->
+                </div>
+                <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <span class="text-xl font-bold text-gray-800 dark:text-white">Total:</span>
+                    <span id="cart-total" class="text-3xl font-extrabold text-orange-600 dark:text-orange-500">?0.00</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                    <button id="clear-cart-button" class="flex-grow bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                        <span data-lucide="trash-2" class="w-6 h-6"></span>
+                        Clear Cart
+                    </button>
+                    <button id="place-order-button" class="flex-grow bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp Icon" class="w-6 h-6" />
+                        Place Order
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order History Page -->
+        <div id="order-history" class="page-content hidden">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">Your Order History</h2>
+            <div id="order-history-list" class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <!-- Order history will be loaded here by JavaScript -->
+                <p id="no-orders-message" class="text-center text-lg text-gray-600 dark:text-gray-300 hidden">You haven't placed any orders yet.</p>
+            </div>
+        </div>
+
+        <!-- Review Page -->
+        <div id="review" class="page-content hidden">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">Customer Reviews</h2>
+            <!-- Review Submission Section -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 max-w-2xl mx-auto border border-gray-200 dark:border-gray-700">
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">Leave a Review</h3>
+                <p class="text-gray-700 dark:text-gray-300 mb-6 text-center">
+                    Please help us improve our restaurant by leaving a review on Google.
+                </p>
+                <button id="submit-review-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                    Leave a Review on Google
+                </button>
+            </div>
+
+            <!-- Existing Reviews Section (will be dynamically loaded) -->
+            <div id="existing-reviews-container" class="space-y-6 max-w-2xl mx-auto">
+                <p id="no-reviews-message" class="text-center text-lg text-gray-600 dark:text-gray-300 hidden">No reviews yet. Be the first to leave one!</p>
+                <!-- Reviews will be loaded here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- About Page -->
+        <div id="about" class="page-content hidden">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">About Us</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 max-w-2xl mx-auto">
+              <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                Welcome to <span class="font-semibold text-orange-600">Deepanshu Restaurant</span>, where culinary excellence meets convenience! We are passionate about serving fresh, high-quality, and incredibly tasty food to our community.
+              </p>
+              <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                Our journey began with a simple goal: to create a delightful dining experience, whether you're enjoying our food in the comfort of your home or on the go. We believe in using the finest ingredients, crafted with care by our experienced chefs.
+              </p>
+              <p class="text-lg text-gray-700 dark:text-gray-300">
+                Thank you for choosing Deepanshu Restaurant. We look forward to serving you!
+              </p>
+            </div>
+        </div>
+
+        <!-- Support Page -->
+        <div id="support" class="page-content hidden">
+            <h2 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">Support & Contact</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 max-w-2xl mx-auto">
+              <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                Have questions or need assistance? Our support team is here to help you!
+              </p>
+              <ul class="text-left text-lg text-gray-700 dark:text-gray-300 space-y-3">
+                <li>
+                  <strong class="text-orange-600 dark:text-orange-500">Email:</strong>
+                  <a href="mailto:deepanshurestaurant.help@gmail.com" class="text-blue-500 hover:underline">deepanshurestaurant.help@gmail.com</a>
+                </li>
+                <li>
+                  <strong class="text-orange-600 dark:text-orange-500">Phone:</strong>
+                  <a href="tel:+919910109626" class="text-blue-500 hover:underline">+919910109626</a>
+                </li>
+                <li>
+                  <strong class="text-orange-600 dark:text-orange-500">Address:</strong>
+                  387/1 Shakti Khand -1 Indirapuram Ghazibad 201014
+                </li>
+              </ul>
+              <p class="mt-6 text-gray-600 dark:text-gray-400">
+                We aim to respond to all inquiries within 24 hours.
+              </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-item active" data-page="menu">
+            <span data-lucide="home" class="w-6 h-6"></span>
+            <span>Home</span>
+        </button>
+        <button class="bottom-nav-item" data-page="cart">
+            <span data-lucide="shopping-cart" class="w-6 h-6"></span>
+            <span>Cart (<span id="bottom-cart-item-count">0</span>)</span>
+        </button>
+        <button class="bottom-nav-item" data-page="order-history">
+            <span data-lucide="history" class="w-6 h-6"></span>
+            <span>Orders</span>
+        </button>
+        <button class="bottom-nav-item" data-page="review">
+            <span data-lucide="star" class="w-6 h-6"></span>
+            <span>Review</span>
+        </button>
+        <button class="bottom-nav-item" data-page="about">
+            <span data-lucide="info" class="w-6 h-6"></span>
+            <span>About</span>
+        </button>
+    </nav>
+
+    <!-- Order Modal -->
+    <div id="order-modal-overlay" class="modal-overlay">
+        <div class="modal-content relative">
+            <button id="close-modal-button" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <span data-lucide="x" class="w-6 h-6"></span>
+            </button>
+            <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Place Your Order</h3>
+
+            <div class="mb-4">
+                <label for="order-type" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Order Type:</label>
+                <select id="order-type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                    <option value="pickup">Pickup</option>
+                    <option value="delivery">Delivery</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="customer-name" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Your Name:</label>
+                <input type="text" id="customer-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="e.g., John Doe">
+            </div>
+
+            <div class="mb-4">
+                <label for="customer-phone" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Phone Number:</label>
+                <input type="tel" id="customer-phone" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="e.g.,+919910109626">
+            </div>
+
+            <div id="delivery-address-group" class="mb-4 hidden">
+                <label for="delivery-address" class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">Delivery Address:</label>
+                <textarea id="delivery-address" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" rows="3" placeholder="e.g., Flat 101, Apartment Name, Street, City"></textarea>
+            </div>
+
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Your Order Number will be: <span id="order-number" class="font-bold text-orange-600 dark:text-orange-500"></span>
+            </p>
+
+            <button id="confirm-order-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                Confirm Order & Send to WhatsApp
+            </button>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal-overlay" class="modal-overlay">
+        <div id="category-modal-content" class="modal-content relative">
+            <button id="close-category-modal-button" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <span data-lucide="x" class="w-6 h-6"></span>
+            </button>
+            <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Select Category</h3>
+            <div id="category-list" class="flex flex-col gap-2">
+                <!-- Categories will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- General Info Toast (for success, error, info messages) -->
+    <div id="info-toast" class="app-toast">
+        <!-- Message will be inserted here -->
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal-overlay" class="modal-overlay">
+        <div id="confirmation-modal-content" class="modal-content">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4" id="confirmation-modal-title"></h3>
+            <p class="text-gray-700 dark:text-gray-300 mb-6" id="confirmation-modal-message"></p>
+            <div class="flex justify-center gap-4">
+                <button id="confirm-yes-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-full shadow-md transition-colors">Yes</button>
+                <button id="confirm-no-button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-5 rounded-full shadow-md transition-colors">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons for vector graphics
+        lucide.createIcons();
+
+        // Global state variables for the application
+        let cartItems = JSON.parse(localStorage.getItem('restaurantCartItems')) || [];
+        let currentPage = 'menu'; // Default page on load
+        let searchTerm = '';
+        let selectedCategory = 'All'; // Default category filter
+        let menuItems = []; // Stores menu data fetched from Apps Script
+
+        // URLs for Google Apps Script web apps
+        // IMPORTANT: Ensure this URL points to your deployed Google Apps Script for fetching menu items.
+        const GOOGLE_APPS_SCRIPT_MENU_URL ='https://script.google.com/macros/s/AKfycby-lPu5QxuUU7OPtCyJr29ezXMXcQEKush8wjBrTmc2_Yu6_K0RTuiRA3-momVpQpZI/exec';
+
+        // IMPORTANT: This URL is for your deployed Google Apps Script web app for fetching reviews.
+        const GOOGLE_SHEET_REVIEW_SCRIPT_URL ='https://script.google.com/macros/s/AKfycbyKJXG8zbDgSCgmDQg15oYpyEqQCtvXdcGqvn0_fmmO0z8qPsgkjrdvKGGxIUupiAM/exec';
+
+        // Google Reviews URL for direct user feedback
+        const GOOGLE_RESTAURANT_REVIEW_URL = "https://www.google.com/search?q=deepanshu+restaurant+indirapuram&rlz=1C1CHBD_enIN1148IN1148&oq=deepanshu+restau&gs_lcrp=EgZjaHJvbWUqDwgAECMYJxjjAhiABBiKBTIPCAAQIxgnGOMCGIAEGIoFMhUIARAuGCcYrwEYxwEYgAQYigUYjgUyBggCEEUYOTIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIGCAYQRRg9MgYIBxBFGD3SAQg2OTU2ajBqN6gCALACAA&sourceid=chrome&ie=UTF8#lrd=0x390cfaba75e4782d:0xeff84a57b3d7cf6a,3,,,,";
+
+        // --- DOM Element References ---
+        const menuItemsContainer = document.getElementById('menu-items-container');
+        const loadingSpinnerContainer = document.getElementById('loading-spinner-container');
+        const errorMessage = document.getElementById('error-message');
+        const cartItemsList = document.getElementById('cart-items-list');
+        const cartTotalSpan = document.getElementById('cart-total');
+        const mobileCartItemCountDrawer = document.getElementById('mobile-cart-item-count-drawer');
+        const bottomCartItemCount = document.getElementById('bottom-cart-item-count');
+        const cartEmptyMessage = document.getElementById('cart-empty-message');
+        const cartContent = document.getElementById('cart-content');
+        const placeOrderButton = document.getElementById('place-order-button');
+        const clearCartButton = document.getElementById('clear-cart-button');
+        const orderHistoryList = document.getElementById('order-history-list');
+        const noOrdersMessage = document.getElementById('no-orders-message');
+        const infoToast = document.getElementById('info-toast'); // General info toast display
+
+        // Mobile menu elements
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenuDrawer = document.getElementById('mobile-menu-drawer');
+        const menuIcon = document.getElementById('menu-icon');
+        const closeIcon = document.getElementById('close-icon');
+
+        // Modals
+        const orderModalOverlay = document.getElementById('order-modal-overlay');
+        const closeOrderModalButton = document.getElementById('close-modal-button');
+        const categoryModalOverlay = document.getElementById('category-modal-overlay');
+        const closeCategoryModalButton = document.getElementById('close-category-modal-button');
+        const categoryButton = document.getElementById('category-button');
+        const categoryList = document.getElementById('category-list');
+
+        // Order form elements
+        const orderTypeSelect = document.getElementById('order-type');
+        const deliveryAddressGroup = document.getElementById('delivery-address-group');
+        const customerNameInput = document.getElementById('customer-name');
+        const customerPhoneInput = document.getElementById('customer-phone');
+        const deliveryAddressInput = document.getElementById('delivery-address');
+        const orderNumberSpan = document.getElementById('order-number');
+        const confirmOrderButton = document.getElementById('confirm-order-button');
+
+        // Confirmation Modal elements
+        const confirmationModalOverlay = document.getElementById('confirmation-modal-overlay');
+        const confirmationModalTitle = document.getElementById('confirmation-modal-title');
+        const confirmationModalMessage = document.getElementById('confirmation-modal-message');
+        const confirmYesButton = document.getElementById('confirm-yes-button');
+        const confirmNoButton = document.getElementById('confirm-no-button');
+
+        // --- Utility Functions ---
+
+        /**
+         * Shows a toast notification with a given message and type.
+         * @param {string} message - The message to display.
+         * @param {string} type - The type of toast ('success', 'error', 'info', 'warning').
+         */
+        function showToast(message, type = 'info') {
+            infoToast.textContent = message;
+            infoToast.className = `app-toast show ${type}`;
+            setTimeout(() => {
+                infoToast.className = `app-toast ${type}`; // Hide by removing 'show'
+            }, 3000); // Hide after 3 seconds
+        }
+
+        /**
+         * Displays a custom confirmation modal.
+         * @param {string} title - The title of the confirmation.
+         * @param {string} message - The message to display.
+         * @returns {Promise<boolean>} A promise that resolves to true if 'Yes' is clicked, false if 'No'.
+         */
+        function showConfirmation(title, message) {
+            return new Promise((resolve) => {
+                confirmationModalTitle.textContent = title;
+                confirmationModalMessage.textContent = message;
+                confirmationModalOverlay.classList.add('open');
+
+                const handleYes = () => {
+                    confirmationModalOverlay.classList.remove('open');
+                    confirmYesButton.removeEventListener('click', handleYes);
+                    confirmNoButton.removeEventListener('click', handleNo);
+                    resolve(true);
+                };
+
+                const handleNo = () => {
+                    confirmationModalOverlay.classList.remove('open');
+                    confirmYesButton.removeEventListener('click', handleYes);
+                    confirmNoButton.removeEventListener('click', handleNo);
+                    resolve(false);
+                };
+
+                confirmYesButton.addEventListener('click', handleYes);
+                confirmNoButton.addEventListener('click', handleNo);
+            });
+        }
+
+
+        // --- Page Navigation and Display ---
+
+        /**
+         * Shows the specified page and hides others.
+         * Updates active state of navigation buttons.
+         * @param {string} pageId - The ID of the page to show (e.g., 'menu', 'cart').
+         */
+        function showPage(pageId) {
+            // Hide all page content divs
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+                page.classList.remove('active');
+            });
+
+            // Show the requested page
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) { // Add null check here
+                targetPage.classList.remove('hidden');
+                targetPage.classList.add('active');
+            } else {
+                console.error(`Page element with ID "${pageId}" not found.`);
+                showToast(`Error: Page "${pageId}" not found.`, 'error');
+                return; // Exit if page not found
+            }
+            currentPage = pageId;
+
+            // Update active state for bottom navigation
+            document.querySelectorAll('.bottom-nav-item').forEach(item => {
+                if (item.dataset.page === pageId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            // Update active state for mobile drawer navigation
+            document.querySelectorAll('#mobile-menu-drawer .nav-link').forEach(item => {
+                if (item.dataset.page === pageId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            // Close mobile menu drawer if open
+            if (mobileMenuDrawer && mobileMenuDrawer.classList.contains('open')) { // Add null check here
+                toggleMobileMenu();
+            }
+
+            // Perform page-specific actions
+            if (pageId === 'cart') {
+                renderCart();
+            } else if (pageId === 'order-history') {
+                loadOrderHistory();
+            } else if (pageId === 'review') {
+                loadReviews();
+            }
+        }
+
+        /**
+         * Toggles the mobile menu drawer visibility.
+         */
+        function toggleMobileMenu() {
+            mobileMenuDrawer.classList.toggle('open');
+            menuIcon.classList.toggle('hidden');
+            closeIcon.classList.toggle('hidden');
+        }
+
+        // --- Menu Item Rendering ---
+
+        /**
+         * Renders a single menu item card.
+         * @param {object} item - The menu item object.
+         * @returns {string} The HTML string for the menu item card.
+         */
+        function renderMenuItem(item) {
+            // Ensure item.variants is an array; if it's an empty string, treat as empty array
+            const itemVariants = Array.isArray(item.variants)
+                ? item.variants
+                : (typeof item.variants === 'string' && item.variants === "" ? [] : item.variants);
+
+
+            // Determine the initial price to display
+            // If variants exist, use the price of the first variant.
+            // Otherwise, use item.price (ensure it's a number, default to 0 if undefined/null)
+            const initialDisplayPrice = itemVariants.length > 0 && typeof itemVariants[0].price === 'number'
+                ? itemVariants[0].price
+                : (typeof item.price === 'number' ? item.price : 0); // Default to 0 if item.price is also not a number
+
+            // Generate variant buttons
+            const variantButtons = itemVariants.map(variant => `
+                <button
+                    class="variant-button px-3 py-1 text-sm rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700"
+                    data-item-id="${item.id}"
+                    data-variant-name="${variant.name}"
+                    onclick="selectVariant(this, '${item.id}', '${variant.name}')"
+                >
+                    ${variant.name}
+                </button>
+            `).join('');
+
+            // Placeholder image with item name if image URL is empty or invalid
+            const imageUrl = item.image && item.image.startsWith('http')
+                ? item.image
+                : `https://placehold.co/600x400/FF7F50/FFFFFF?text=${encodeURIComponent(item.name)}`;
+
+            return `
+                <div class="menu-item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col" data-item-id="${item.id}">
+                    <!-- Product Image -->
+                    <div class="w-full h-48 sm:h-40 lg:h-48 overflow-hidden relative">
+                        <img src="${imageUrl}" alt="${item.name}" class="menu-item-image w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x400/FF7F50/FFFFFF?text=${encodeURIComponent(item.name)}';">
+                        <!-- Optional: Badge for popular/bestseller - uncomment and add logic if needed -->
+                        <!-- ${item.isPopular ? '<span class="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">Popular</span>' : ''} -->
+                    </div>
+                    <div class="p-4 flex flex-col flex-grow">
+                        <!-- Name and Description -->
+                        <h3 class="menu-item-name text-xl font-bold text-gray-900 dark:text-white mb-1">${item.name}</h3>
+                        <p class="menu-item-description text-gray-600 dark:text-gray-400 text-sm mb-3 flex-grow">${item.description}</p>
+
+                        <!-- Variants Section -->
+                        <div class="menu-item-variants flex flex-wrap gap-2 mb-3" data-item-id="${item.id}">
+                            ${variantButtons}
+                        </div>
+
+                        <!-- Price and Add to Cart -->
+                        <div class="menu-item-price-section flex items-center justify-between mt-auto">
+                            <span class="menu-item-price text-2xl font-extrabold text-orange-600 dark:text-orange-500" data-item-id="${item.id}">?${initialDisplayPrice.toFixed(2)}</span>
+                            <button class="add-to-cart-button bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5" data-item-id="${item.id}" onclick="addToCart('${item.id}')">
+                                Add <span data-lucide="plus" class="inline-block w-4 h-4 ml-1"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        /**
+         * Filters and renders menu items based on search term and selected category.
+         */
+        function filterAndRenderMenuItems() {
+            const filteredItems = menuItems.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+                return matchesSearch && matchesCategory;
+            });
+
+            if (filteredItems.length === 0) {
+                menuItemsContainer.innerHTML = '<p class="col-span-full text-center text-gray-600 dark:text-gray-300 text-lg">No items found matching your criteria.</p>';
+            } else {
+                menuItemsContainer.innerHTML = filteredItems.map(renderMenuItem).join('');
+                // After rendering, ensure Lucide icons are created for new elements
+                lucide.createIcons();
+                // Re-apply active variant styles if any items are already in cart
+                cartItems.forEach(cartItem => {
+                    const menuItemCard = document.querySelector(`.menu-item-card[data-item-id="${cartItem.id}"]`);
+                    if (menuItemCard) {
+                        const variantButton = menuItemCard.querySelector(`.variant-button[data-variant-name="${cartItem.selectedVariant}"]`);
+                        if (variantButton) {
+                            // First, remove active from all variants for this item
+                            menuItemCard.querySelectorAll('.variant-button').forEach(btn => btn.classList.remove('active'));
+                            // Then, add active to the selected variant
+                            variantButton.classList.add('active');
+                            // Update price display for the selected variant
+                            const itemData = menuItems.find(item => item.id === cartItem.id);
+                            if (itemData) {
+                                // Ensure itemData.variants is an array
+                                const itemDataVariants = Array.isArray(itemData.variants)
+                                    ? itemData.variants
+                                    : (typeof itemData.variants === 'string' && itemData.variants === "" ? [] : itemData.variants);
+
+                                const variantPrice = itemDataVariants.find(v => v.name === cartItem.selectedVariant)?.price;
+                                // Ensure variantPrice is a number before toFixed
+                                menuItemCard.querySelector('.menu-item-price').textContent = `?${(typeof variantPrice === 'number' ? variantPrice : itemData.price || 0).toFixed(2)}`;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        /**
+         * Fetches menu items from Google Apps Script.
+         */
+        async function fetchMenuItems() {
+            loadingSpinnerContainer.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            menuItemsContainer.innerHTML = ''; // Clear previous items
+
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_MENU_URL);
+
+                if (!response.ok) {
+                    // Log the HTTP status and status text for debugging
+                    console.error(`HTTP error! Status: ${response.status}, Status Text: ${response.statusText}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                let rawData;
+                try {
+                    rawData = await response.json(); // This will now be the array directly
+                } catch (jsonError) {
+                    // Log JSON parsing error and the raw response text
+                    const rawText = await response.text();
+                    console.error('JSON parsing error:', jsonError);
+                    console.error('Raw response text:', rawText);
+                    throw new Error('Invalid JSON response from script.');
+                }
+
+                // The script is returning an array of menu items directly.
+                // We need to adapt to this format and ensure data types are correct.
+                if (Array.isArray(rawData)) {
+                    menuItems = rawData.map(item => {
+                        // Ensure ID is a string for consistent lookup later
+                        item.id = String(item.id);
+                        // Ensure price is a number, default to 0 if parsing fails
+                        item.price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
+
+                        // Ensure variants is an array and variant prices are numbers
+                        if (typeof item.variants === 'string' && item.variants === "") {
+                            item.variants = [];
+                        } else if (Array.isArray(item.variants)) {
+                            item.variants = item.variants.map(variant => {
+                                variant.price = typeof variant.price === 'number' ? variant.price : parseFloat(variant.price) || 0;
+                                return variant;
+                            });
+                        } else {
+                            item.variants = []; // Default to empty array if variants is not array or empty string
+                        }
+                        return item;
+                    });
+
+                    // console.log('Processed menuItems:', menuItems); // For debugging: uncomment to see processed data
+
+                    // Extract categories from the menuItems
+                    const uniqueCategories = new Set();
+                    uniqueCategories.add('All'); // Always add 'All'
+                    menuItems.forEach(item => {
+                        if (item.category) {
+                            uniqueCategories.add(item.category);
+                        }
+                    });
+                    const categories = Array.from(uniqueCategories);
+
+                    filterAndRenderMenuItems(); // Initial render with all items
+                    populateCategories(categories); // Populate category modal
+                } else {
+                    // This case would be for non-array responses, which is less likely now
+                    console.error('Unexpected data format received from script. Expected an array of menu items.', rawData);
+                    throw new Error('Unexpected data format received from script. Expected an array of menu items.');
+                }
+
+            } catch (error) {
+                console.error('Error fetching menu items:', error);
+                errorMessage.classList.remove('hidden');
+                showToast(`Failed to load menu: ${error.message}. Please check your Google Apps Script deployment and data format.`, 'error');
+            } finally {
+                loadingSpinnerContainer.classList.add('hidden');
+            }
+        }
+
+        // --- Variant Selection Logic ---
+
+        /**
+         * Handles variant selection for a menu item.
+         * @param {HTMLElement} button - The clicked variant button element.
+         * @param {string} itemId - The ID of the item.
+         * @param {string} variantName - The name of the selected variant.
+         */
+        function selectVariant(button, itemId, variantName) {
+            const itemCard = button.closest('.menu-item-card');
+            if (!itemCard) return;
+
+            // Remove 'active' class from all variant buttons for this item
+            itemCard.querySelectorAll('.variant-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Add 'active' class to the clicked button
+            button.classList.add('active');
+
+            // Find the item and variant data to update the displayed price
+            const item = menuItems.find(i => i.id === itemId);
+            if (item) {
+                // Ensure item.variants is an array
+                const itemVariants = Array.isArray(item.variants)
+                    ? item.variants
+                    : (typeof item.variants === 'string' && item.variants === "" ? [] : item.variants);
+
+                const selectedVariantData = itemVariants.find(v => v.name === variantName);
+                const priceElement = itemCard.querySelector('.menu-item-price');
+                let priceToDisplay = 0; // Default price
+
+                if (selectedVariantData && typeof selectedVariantData.price === 'number') {
+                    priceToDisplay = selectedVariantData.price;
+                } else if (typeof item.price === 'number') {
+                    // Fallback to base price if variant not found or price is invalid
+                    priceToDisplay = item.price;
+                } else {
+                    console.warn(`Price for item ${itemId} variant ${variantName} is undefined or not a number. Defaulting to 0.`);
+                }
+                if (priceElement) {
+                    priceElement.textContent = `?${priceToDisplay.toFixed(2)}`;
+                }
+            }
+        }
+
+        // --- Cart Management ---
+
+        /**
+         * Adds an item (with its selected variant) to the cart.
+         * @param {string} itemId - The ID of the item to add.
+         */
+        function addToCart(itemId) {
+            const itemCard = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
+            if (!itemCard) {
+                showToast('Item card not found for this item.', 'error');
+                console.error('Item card not found for itemId:', itemId);
+                return;
+            }
+
+            const itemDetails = menuItems.find(item => item.id === itemId);
+            if (!itemDetails) {
+                showToast('Item details not found in menu data.', 'error');
+                console.error('Item details not found in menuItems array for itemId:', itemId);
+                return;
+            }
+
+            const selectedVariantButton = itemCard.querySelector('.variant-button.active');
+            let selectedVariantName = 'Default'; // Default if no variants or none selected
+            let itemPrice;
+
+            // Ensure itemDetails.variants is an array
+            const itemVariants = Array.isArray(itemDetails.variants)
+                ? itemDetails.variants
+                : (typeof itemDetails.variants === 'string' && itemDetails.variants === "" ? [] : itemDetails.variants);
+
+            if (selectedVariantButton) {
+                selectedVariantName = selectedVariantButton.dataset.variantName;
+                const selectedVariantData = itemVariants.find(v => v.name === selectedVariantName);
+
+                if (selectedVariantData && typeof selectedVariantData.price === 'number') {
+                    itemPrice = selectedVariantData.price;
+                } else if (typeof itemDetails.price === 'number') {
+                    // Fallback to base item price if variant price is missing/invalid
+                    itemPrice = itemDetails.price;
+                } else {
+                    itemPrice = 0; // Default if no valid price found
+                    console.warn(`Price for item ${itemId} variant ${selectedVariantName} is undefined or not a number. Defaulting to 0.`);
+                }
+            } else {
+                // If no variant is selected
+                if (itemVariants.length > 0) {
+                    showToast('Please select a variant first!', 'warning');
+                    return; // Crucial: stop execution if variant is required but not selected
+                } else {
+                    // No variants, use base item price. Ensure it's a number.
+                    if (typeof itemDetails.price === 'number') {
+                        itemPrice = itemDetails.price;
+                    } else {
+                        itemPrice = 0;
+                        console.warn(`Price for item ${itemId} (no variants) is undefined or not a number. Defaulting to 0.`);
+                    }
+                }
+            }
+
+            const existingCartItemIndex = cartItems.findIndex(item =>
+                item.id === itemId && item.selectedVariant === selectedVariantName
+            );
+
+            if (existingCartItemIndex > -1) {
+                cartItems[existingCartItemIndex].quantity++;
+            } else {
+                cartItems.push({
+                    id: itemId,
+                    name: itemDetails.name,
+                    image: itemDetails.image,
+                    price: itemPrice, // Now guaranteed to be a number
+                    selectedVariant: selectedVariantName,
+                    quantity: 1
+                });
+            }
+            saveCart();
+            updateCartCounts();
+            showToast(`${itemDetails.name} added to cart!`, 'success');
+        }
+
+        /**
+         * Removes an item from the cart.
+         * @param {string} itemId - The ID of the item to remove.
+         * @param {string} variantName - The name of the variant to remove.
+         */
+        function removeFromCart(itemId, variantName) {
+            cartItems = cartItems.filter(item => !(item.id === itemId && item.selectedVariant === variantName));
+            saveCart();
+            renderCart();
+            updateCartCounts();
+            showToast('Item removed from cart.', 'info');
+        }
+
+        /**
+         * Adjusts the quantity of an item in the cart.
+         * @param {string} itemId - The ID of the item.
+         * @param {string} variantName - The name of the variant.
+         * @param {number} change - The amount to change the quantity by (+1 or -1).
+         */
+        function changeQuantity(itemId, variantName, change) {
+            const itemIndex = cartItems.findIndex(item =>
+                item.id === itemId && item.selectedVariant === variantName
+            );
+
+            if (itemIndex > -1) {
+                cartItems[itemIndex].quantity += change;
+                if (cartItems[itemIndex].quantity <= 0) {
+                    removeFromCart(itemId, variantName);
+                } else {
+                    saveCart();
+                    renderCart();
+                    updateCartCounts();
+                }
+            }
+        }
+
+        /**
+         * Clears all items from the cart.
+         */
+        async function clearCart() {
+            const confirmed = await showConfirmation('Clear Cart?', 'Are you sure you want to clear all items from your cart?');
+            if (confirmed) {
+                cartItems = [];
+                saveCart();
+                renderCart();
+                updateCartCounts();
+                showToast('Cart cleared!', 'info');
+            }
+        }
+
+        /**
+         * Saves the current cart items to local storage.
+         */
+        function saveCart() {
+            localStorage.setItem('restaurantCartItems', JSON.stringify(cartItems));
+        }
+
+        /**
+         * Updates the cart item counts displayed in the header and bottom navigation.
+         */
+        function updateCartCounts() {
+            const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+            mobileCartItemCountDrawer.textContent = totalItems;
+            bottomCartItemCount.textContent = totalItems;
+        }
+
+        /**
+         * Renders the cart items in the cart page.
+         */
+        function renderCart() {
+            if (cartItems.length === 0) {
+                cartEmptyMessage.classList.remove('hidden');
+                cartContent.classList.add('hidden');
+                return;
+            }
+
+            cartEmptyMessage.classList.add('hidden');
+            cartContent.classList.remove('hidden');
+
+            cartItemsList.innerHTML = cartItems.map(item => `
+                <div class="cart-item flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm">
+                    <div class="flex items-center gap-3 flex-grow">
+                        <img src="${item.image || 'https://placehold.co/60x60/FF7F50/FFFFFF?text=Item'}" alt="${item.name}" class="w-16 h-16 rounded-md object-cover">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 dark:text-white">${item.name}</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">${item.selectedVariant !== 'Default' ? item.selectedVariant : ''}</p>
+                            <p class="font-bold text-orange-600 dark:text-orange-500">?${item.price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', -1)">
+                            <span data-lucide="minus" class="w-4 h-4"></span>
+                        </button>
+                        <span class="font-bold text-lg w-6 text-center">${item.quantity}</span>
+                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', 1)">
+                            <span data-lucide="plus" class="w-4 h-4"></span>
+                        </button>
+                        <button class="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2" onclick="removeFromCart('${item.id}', '${item.selectedVariant}')">
+                            <span data-lucide="trash-2" class="w-5 h-5"></span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Re-create Lucide icons for newly added cart items
+            lucide.createIcons();
+            updateCartTotal();
+        }
+
+        /**
+         * Calculates and updates the total price of items in the cart.
+         */
+        function updateCartTotal() {
+            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            cartTotalSpan.textContent = `?${total.toFixed(2)}`;
+        }
+
+        // --- Order Placement ---
+
+        /**
+         * Opens the order modal.
+         */
+        function openOrderModal() {
+            if (cartItems.length === 0) {
+                showToast('Your cart is empty. Please add items before placing an order.', 'warning');
+                return;
+            }
+            orderModalOverlay.classList.add('open');
+            // Generate a simple order number (for display, not unique across all orders)
+            orderNumberSpan.textContent = `DR-${Date.now().toString().slice(-6)}`;
+        }
+
+        /**
+         * Closes the order modal.
+         */
+        function closeOrderModal() {
+            orderModalOverlay.classList.remove('open');
+        }
+
+        /**
+         * Handles the order confirmation and sends it via WhatsApp.
+         */
+        async function confirmOrder() {
+            const customerName = customerNameInput.value.trim();
+            const customerPhone = customerPhoneInput.value.trim();
+            const orderType = orderTypeSelect.value;
+            const deliveryAddress = deliveryAddressInput.value.trim();
+            const orderNumber = orderNumberSpan.textContent;
+
+            if (!customerName || !customerPhone) {
+                showToast('Please enter your name and phone number.', 'error');
+                return;
+            }
+            if (orderType === 'delivery' && !deliveryAddress) {
+                showToast('Please enter your delivery address.', 'error');
+                return;
+            }
+
+            const confirmed = await showConfirmation('Confirm Order?', 'Are you sure you want to place this order?');
+            if (!confirmed) {
+                return;
+            }
+
+            let orderDetails = `*Order from Deepanshu Restaurant*\n`;
+            orderDetails += `*Order No:* ${orderNumber}\n`;
+            orderDetails += `*Name:* ${customerName}\n`;
+            orderDetails += `*Phone:* ${customerPhone}\n`;
+            orderDetails += `*Order Type:* ${orderType}\n`;
+            if (orderType === 'delivery') {
+                orderDetails += `*Delivery Address:* ${deliveryAddress}\n`;
+            }
+            orderDetails += `\n*Items:*\n`;
+            cartItems.forEach(item => {
+                orderDetails += `- ${item.quantity}x ${item.name}`;
+                if (item.selectedVariant !== 'Default') {
+                    orderDetails += ` (${item.selectedVariant})`;
+                }
+                orderDetails += ` @ ?${item.price.toFixed(2)} each\n`;
+            });
+            orderDetails += `\n*Total:* ?${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}\n`;
+            orderDetails += `\nThank you for your order!`;
+
+            const whatsappUrl = `https://wa.me/+919910109626?text=${encodeURIComponent(orderDetails)}`;
+            window.open(whatsappUrl, '_blank');
+
+            // Save order to history
+            saveOrderToHistory({
+                orderNumber: orderNumber,
+                timestamp: new Date().toISOString(),
+                customerName: customerName,
+                customerPhone: customerPhone,
+                orderType: orderType,
+                deliveryAddress: orderType === 'delivery' ? deliveryAddress : '',
+                items: cartItems,
+                total: cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+            });
+
+            cartItems = []; // Clear cart after placing order
+            saveCart();
+            renderCart();
+            updateCartCounts();
+            closeOrderModal();
+            showToast('Order placed successfully! Redirecting to WhatsApp.', 'success');
+            // Optionally, navigate to order history page
+            setTimeout(() => showPage('order-history'), 1000);
+        }
+
+        // --- Order History ---
+
+        /**
+         * Saves an order to local storage (order history).
+         * @param {object} order - The order object to save.
+         */
+        function saveOrderToHistory(order) {
+            let orderHistory = JSON.parse(localStorage.getItem('restaurantOrderHistory')) || [];
+            orderHistory.push(order);
+            localStorage.setItem('restaurantOrderHistory', JSON.stringify(orderHistory));
+        }
+
+        /**
+         * Loads and displays order history from local storage.
+         */
+        function loadOrderHistory() {
+            const orderHistory = JSON.parse(localStorage.getItem('restaurantOrderHistory')) || [];
+
+            if (orderHistory.length === 0) {
+                noOrdersMessage.classList.remove('hidden');
+                orderHistoryList.innerHTML = '';
+                return;
+            }
+
+            noOrdersMessage.classList.add('hidden');
+            orderHistoryList.innerHTML = orderHistory.map(order => {
+                const orderDate = new Date(order.timestamp).toLocaleString();
+                const itemsList = order.items.map(item => `
+                    <li>${item.quantity}x ${item.name} ${item.selectedVariant !== 'Default' ? `(${item.selectedVariant})` : ''} - ?${item.price.toFixed(2)}</li>
+                `).join('');
+
+                return `
+                    <div class="order-history-item bg-gray-50 dark:bg-gray-700 rounded-xl shadow-sm p-4 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.orderNumber}</h4>
+                            <span class="text-sm text-gray-600 dark:text-gray-400">${orderDate}</span>
+                        </div>
+                        <p class="text-gray-700 dark:text-gray-300">Total: <span class="font-bold text-orange-600 dark:text-orange-500">?${order.total.toFixed(2)}</span></p>
+                        <p class="text-gray-700 dark:text-gray-300">Type: ${order.orderType}</p>
+                        ${order.orderType === 'delivery' ? `<p class="text-gray-700 dark:text-gray-300">Address: ${order.deliveryAddress}</p>` : ''}
+                        <div class="mt-2">
+                            <p class="font-semibold text-gray-800 dark:text-white">Items:</p>
+                            <ul class="list-disc list-inside text-gray-600 dark:text-gray-400 text-sm">
+                                ${itemsList}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Category Management ---
+
+        /**
+         * Populates the category modal with buttons.
+         * @param {string[]} categories - An array of category names.
+         */
+        function populateCategories(categories) {
+            categoryList.innerHTML = ''; // Clear existing categories
+
+            // Add "All" category option
+            const allCategoryButton = document.createElement('button');
+            allCategoryButton.className = 'category-button-item';
+            allCategoryButton.innerHTML = `
+                <span class="font-medium text-gray-800 dark:text-white">All</span>
+                <span data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></span>
+            `;
+            allCategoryButton.onclick = () => {
+                selectedCategory = 'All';
+                filterAndRenderMenuItems();
+                closeCategoryModal();
+            };
+            categoryList.appendChild(allCategoryButton);
+
+            // Add other categories
+            categories.forEach(category => {
+                const button = document.createElement('button');
+                button.className = 'category-button-item';
+                button.innerHTML = `
+                    <span class="font-medium text-gray-800 dark:text-white">${category}</span>
+                    <span data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></span>
+                `;
+                button.onclick = () => {
+                    selectedCategory = category;
+                    filterAndRenderMenuItems();
+                    closeCategoryModal();
+                };
+                categoryList.appendChild(button);
+            });
+            lucide.createIcons(); // Re-create icons for new category buttons
+        }
+
+        /**
+         * Opens the category selection modal.
+         */
+        function openCategoryModal() {
+            categoryModalOverlay.classList.add('open');
+        }
+
+        /**
+         * Closes the category selection modal.
+         */
+        function closeCategoryModal() {
+            categoryModalOverlay.classList.remove('open');
+        }
+
+        // --- Review Section ---
+
+        /**
+         * Loads and displays existing reviews. (This is a placeholder, as actual reviews would come from a backend)
+         */
+        async function loadReviews() {
+            const existingReviewsContainer = document.getElementById('existing-reviews-container');
+            const noReviewsMessage = document.getElementById('no-reviews-message');
+
+            existingReviewsContainer.innerHTML = ''; // Clear previous reviews
+            noReviewsMessage.classList.add('hidden'); // Hide message initially
+
+            try {
+                const response = await fetch(GOOGLE_SHEET_REVIEW_SCRIPT_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data && Array.isArray(data.reviews) && data.reviews.length > 0) {
+                    data.reviews.forEach(review => {
+                        const reviewElement = document.createElement('div');
+                        reviewElement.className = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700';
+                        reviewElement.innerHTML = `
+                            <div class="flex items-center mb-2">
+                                <span class="font-semibold text-gray-800 dark:text-white mr-2">${review.name}</span>
+                                <span class="text-yellow-500 flex items-center">
+                                    ${'<span data-lucide="star" class="w-4 h-4 fill-current"></span>'.repeat(review.rating)}
+                                    ${'<span data-lucide="star" class="w-4 h-4 text-gray-300"></span>'.repeat(5 - review.rating)}
+                                </span>
+                            </div>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm">${review.comment}</p>
+                        `;
+                        existingReviewsContainer.appendChild(reviewElement);
+                    });
+                    lucide.createIcons(); // Re-create icons for new review stars
+                } else {
+                    noReviewsMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error fetching reviews:', error);
+                noReviewsMessage.textContent = 'Failed to load reviews. Please try again later.';
+                noReviewsMessage.classList.remove('hidden');
+                showToast('Failed to load reviews.', 'error');
+            }
+        }
+
+        /**
+         * Redirects the user to the Google review page.
+         */
+        function redirectToGoogleReview() {
+            window.open(GOOGLE_RESTAURANT_REVIEW_URL, '_blank');
+        }
+
+        // --- Event Listeners ---
+
+        // Navigation buttons
+        document.querySelectorAll('.nav-link, .bottom-nav-item').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const pageId = event.currentTarget.dataset.page;
+                if (pageId) {
+                    showPage(pageId);
+                }
+            });
+        });
+
+        // Mobile menu toggle
+        mobileMenuButton.addEventListener('click', toggleMobileMenu);
+
+        // Search input
+        document.getElementById('search-input').addEventListener('input', (event) => {
+            searchTerm = event.target.value;
+            filterAndRenderMenuItems();
+        });
+
+        // Category button
+        categoryButton.addEventListener('click', openCategoryModal);
+        closeCategoryModalButton.addEventListener('click', closeCategoryModal);
+
+        // Cart buttons
+        clearCartButton.addEventListener('click', clearCart);
+        placeOrderButton.addEventListener('click', openOrderModal);
+
+        // Order modal buttons and logic
+        closeOrderModalButton.addEventListener('click', closeOrderModal);
+        confirmOrderButton.addEventListener('click', confirmOrder);
+        orderTypeSelect.addEventListener('change', () => {
+            if (orderTypeSelect.value === 'delivery') {
+                deliveryAddressGroup.classList.remove('hidden');
+            } else {
+                deliveryAddressGroup.classList.add('hidden');
+            }
+        });
+
+        // Review button
+        document.getElementById('submit-review-button').addEventListener('click', redirectToGoogleReview);
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchMenuItems();
+            updateCartCounts();
+            showPage(currentPage); // Ensure the correct page is displayed on load
+        });
+
+        // Dark mode toggle (optional, not requested but good for modern apps)
+        // You can add a button and logic for this if desired.
+        // For example:
+        // const toggleDarkMode = () => {
+        //     document.documentElement.classList.toggle('dark');
+        //     localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        // };
+        // // Check for saved theme preference
+        // if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        //     document.documentElement.classList.add('dark');
+        // } else {
+        //     document.documentElement.classList.remove('dark');
+        // }
+    </script>
+</body>
+</html>
