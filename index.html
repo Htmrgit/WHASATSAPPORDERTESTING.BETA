@@ -351,6 +351,43 @@
         .btn-danger {
             @apply bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50;
         }
+
+        /* Store Status Banner */
+        #store-status-banner {
+            position: sticky; /* Make it sticky */
+            top: 4rem; /* Below the header */
+            width: 100%;
+            background-color: #fff; /* Default white */
+            color: #333; /* Default dark text */
+            padding: 0.75rem 1rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            z-index: 900; /* Below header, above main content */
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .dark #store-status-banner {
+            background-color: #1f2937;
+            color: #f9fafb;
+            border-bottom-color: #374151;
+        }
+        #store-status-banner.open-status {
+            background-color: #d1fae5; /* Green 100 */
+            color: #065f46; /* Green 800 */
+        }
+        .dark #store-status-banner.open-status {
+            background-color: #064e3b; /* Darker Green */
+            color: #a7f3d0; /* Lighter Green */
+        }
+        #store-status-banner.closed-status {
+            background-color: #fee2e2; /* Red 100 */
+            color: #991b1b; /* Red 800 */
+        }
+        .dark #store-status-banner.closed-status {
+            background-color: #7f1d1d; /* Darker Red */
+            color: #fca5a5; /* Lighter Red */
+        }
     </style>
 </head>
 <body class="font-inter">
@@ -401,6 +438,11 @@
             </nav>
         </div>
     </header>
+
+    <!-- Store Status Banner -->
+    <div id="store-status-banner" class="store-status-banner">
+        Loading store status...
+    </div>
 
     <!-- Main Content Area -->
     <main class="container mx-auto px-4 py-8">
@@ -589,7 +631,7 @@
                 Your Order Number will be: <span id="order-number" class="font-bold text-orange-600 dark:text-orange-500"></span>
             </p>
 
-            <button id="confirm-order-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+            <button id="confirm-order-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
                 Confirm Order & Send to WhatsApp
             </button>
         </div>
@@ -635,13 +677,17 @@
         let searchTerm = '';
         let selectedCategory = 'All'; // Default category filter
         let menuItems = []; // Stores menu data fetched from Apps Script
+        let isStoreOpenGlobally = true; // Global flag for store status, default to true
 
         // URLs for Google Apps Script web apps
         // IMPORTANT: Ensure this URL points to your deployed Google Apps Script for fetching menu items.
         const GOOGLE_APPS_SCRIPT_MENU_URL ='https://script.google.com/macros/s/AKfycby-lPu5QxuUU7OPtCyJr29ezXMXcQEKush8wjBrTmc2_Yu6_K0RTuiRA3-momVpQpZI/exec';
 
         // IMPORTANT: This URL is for your deployed Google Apps Script web app for fetching reviews.
-        const GOOGLE_SHEET_REVIEW_SCRIPT_URL ='https://script.google.com/macros/s/AKfycby02nwldgdtxqFBQw_dNBfc5XaFiDV406nXZjQUWserKbF2Q2jU14ibVcrlTY0FMo8/exec'; // Updated URL
+        const GOOGLE_SHEET_REVIEW_SCRIPT_URL ='https://script.google.com/macros/s/AKfycby02nwldgdtxqFBQw_dNBfc5XaFiDV406nXZjQUWserKbF2Q2jU14ibVcrlTY0FMo8/exec';
+
+        // IMPORTANT: This URL is for your deployed Google Apps Script web app for fetching store status.
+        const GOOGLE_STORE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbzwZqF-Z8vC0h-c6mkCg6TTY834nELdxUdx7RIUesHdGP5mzy0xBqXnlgzbcpzVkDoy/exec'; // New URL
 
         // Google Reviews URL for direct user feedback (Corrected to a search link that leads to reviews)
         const GOOGLE_RESTAURANT_REVIEW_URL = "https://www.google.com/search?q=deepanshu+restaurant+indirapuram&rlz=1C1CHBD_enIN1148IN1148&oq=deepanshu+restau&gs_lcrp=EgZjaHJvbWUqDwgAECMYJxjjAhiABBiKBTIPCAAQIxgnGOMCGIAEGIoFMhUIARAuGCcYrwEYxwEYgAQYigUYjgUyBggCEEUYOTIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIGCAYQRRg9MgYIBxBFGD3SAQg2OTU2ajBqN6gCALACAA&sourceid=chrome&ie=UTF8#lrd=0x390cfaba75e4782d:0xeff84a57b3d7cf6a,3,,,,";
@@ -661,6 +707,7 @@
         const orderHistoryList = document.getElementById('order-history-list');
         const noOrdersMessage = document.getElementById('no-orders-message');
         const infoToast = document.getElementById('info-toast'); // General info toast display
+        const storeStatusBanner = document.getElementById('store-status-banner'); // Store status banner
 
         // Mobile menu elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -858,7 +905,7 @@
             if (itemVariants.length > 0) {
                 // Render as a dropdown
                 variantControlHtml = `
-                    <select class="variant-select" data-item-id="${item.id}" onchange="selectVariant(this, '${item.id}')">
+                    <select class="variant-select" data-item-id="${item.id}" onchange="selectVariant(this, '${item.id}')" ${!isStoreOpenGlobally ? 'disabled' : ''}>
                         <option value="">Select a variant</option>
                         ${itemVariants.map(variant => `
                             <option value="${variant.name}" ${itemVariants[0].name === variant.name ? 'selected' : ''}>${variant.name}</option>
@@ -893,7 +940,7 @@
                         <!-- Price and Add to Cart -->
                         <div class="menu-item-price-section flex flex-col sm:flex-row sm:items-center sm:justify-between mt-auto gap-2">
                             <span class="menu-item-price text-2xl font-extrabold text-orange-600 dark:text-orange-500" data-item-id="${item.id}">&#8377;${initialDisplayPrice.toFixed(2)}</span>
-                            <button class="add-to-cart-button bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 w-full sm:w-auto" data-item-id="${item.id}" onclick="addToCart('${item.id}')">
+                            <button class="add-to-cart-button bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 w-full sm:w-auto" data-item-id="${item.id}" onclick="addToCart('${item.id}')" ${!isStoreOpenGlobally ? 'disabled' : ''}>
                                 Add <span data-lucide="plus" class="inline-block w-4 h-4 ml-1"></span>
                             </button>
                         </div>
@@ -969,6 +1016,7 @@
                     console.error(`[filterAndRenderMenuItems] ERROR: Item ID: ${item.id} was in filteredItems but its card was NOT found in DOM after rendering.`);
                 }
             });
+            toggleOrderButtonsState(); // Update button states after rendering menu
         }
 
         /**
@@ -1117,6 +1165,10 @@
          * @param {string} itemId - The ID of the item to add.
          */
         function addToCart(itemId) {
+            if (!isStoreOpenGlobally) {
+                showToast('Store is currently closed. Cannot add items to cart.', 'warning');
+                return;
+            }
             console.log(`[addToCart] Attempting to add item with ID: ${itemId}`); // Added debug log
             const itemCard = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
             console.log(`[addToCart] Query result for itemCard (ID: ${itemId}):`, itemCard); // Added debug log
@@ -1285,14 +1337,14 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', -1)">
+                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', -1)" ${!isStoreOpenGlobally ? 'disabled' : ''}>
                             <span data-lucide="minus" class="w-4 h-4"></span>
                         </button>
                         <span class="font-bold text-lg w-6 text-center">${item.quantity}</span>
-                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', 1)">
+                        <button class="quantity-control-button" onclick="changeQuantity('${item.id}', '${item.selectedVariant}', 1)" ${!isStoreOpenGlobally ? 'disabled' : ''}>
                             <span data-lucide="plus" class="w-4 h-4"></span>
                         </button>
-                        <button class="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2" onclick="removeFromCart('${item.id}', '${item.selectedVariant}')">
+                        <button class="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2" onclick="removeFromCart('${item.id}', '${item.selectedVariant}')" ${!isStoreOpenGlobally ? 'disabled' : ''}>
                             <span data-lucide="trash-2" class="w-5 h-5"></span>
                         </button>
                     </div>
@@ -1302,6 +1354,7 @@
             // Re-create Lucide icons for newly added cart items
             lucide.createIcons();
             updateCartTotal();
+            toggleOrderButtonsState(); // Update button states after rendering cart
         }
 
         /**
@@ -1319,6 +1372,10 @@
          * Opens the order modal.
          */
         function openOrderModal() {
+            if (!isStoreOpenGlobally) {
+                showToast('Store is currently closed. Cannot place order.', 'warning');
+                return;
+            }
             if (cartItems.length === 0) {
                 showToast('Your cart is empty. Please add items before placing an order.', 'warning');
                 return;
@@ -1339,6 +1396,10 @@
          * Handles the order confirmation and sends it via WhatsApp.
          */
         async function confirmOrder() {
+            if (!isStoreOpenGlobally) {
+                showToast('Store is currently closed. Cannot confirm order.', 'warning');
+                return;
+            }
             const customerName = customerNameInput.value.trim();
             const customerPhone = customerPhoneInput.value.trim();
             const orderType = orderTypeSelect.value;
@@ -1590,6 +1651,121 @@
             window.open(GOOGLE_RESTAURANT_REVIEW_URL, '_blank');
         }
 
+        /**
+         * Fetches and displays the store status from the Google Apps Script backend.
+         */
+        async function fetchStoreStatus() {
+            console.log('[fetchStoreStatus] Attempting to fetch store status from:', GOOGLE_STORE_STATUS_URL);
+            storeStatusBanner.textContent = 'Loading store status...';
+            storeStatusBanner.className = 'store-status-banner'; // Reset classes
+
+            try {
+                const response = await fetch(GOOGLE_STORE_STATUS_URL);
+                console.log('[fetchStoreStatus] Fetch response received:', response);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`[fetchStoreStatus] HTTP error! Status: ${response.status}, Status Text: ${response.statusText}, Response Body: ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status}. Check Apps Script deployment and permissions.`);
+                }
+
+                const data = await response.json();
+                console.log('[fetchStoreStatus] Fetched store status data:', data);
+
+                isStoreOpenGlobally = data.isStoreOpen;
+                storeStatusBanner.textContent = data.message;
+
+                if (isStoreOpenGlobally) {
+                    storeStatusBanner.classList.add('open-status');
+                    showToast(data.message, 'success');
+                } else {
+                    storeStatusBanner.classList.add('closed-status');
+                    showToast(data.message, 'warning');
+                }
+            } catch (error) {
+                console.error('[fetchStoreStatus] Error fetching store status:', error);
+                isStoreOpenGlobally = false; // Assume closed on error
+                storeStatusBanner.textContent = `Error: Could not load store status. ${error.message}`;
+                storeStatusBanner.classList.add('closed-status');
+                showToast(`Error loading store status: ${error.message}`, 'error');
+            } finally {
+                toggleOrderButtonsState(); // Always update button states after status is known
+            }
+        }
+
+        /**
+         * Toggles the disabled state of "Add to Cart" and "Place Order" buttons
+         * based on the global store status.
+         */
+        function toggleOrderButtonsState() {
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-button');
+            const variantSelects = document.querySelectorAll('.variant-select');
+            const quantityControlButtons = document.querySelectorAll('.quantity-control-button');
+
+            addToCartButtons.forEach(button => {
+                button.disabled = !isStoreOpenGlobally;
+                if (!isStoreOpenGlobally) {
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
+                    button.classList.remove('hover:bg-orange-600', 'hover:-translate-y-0.5');
+                } else {
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    button.classList.add('hover:bg-orange-600', 'hover:-translate-y-0.5');
+                }
+            });
+
+            variantSelects.forEach(select => {
+                select.disabled = !isStoreOpenGlobally;
+                if (!isStoreOpenGlobally) {
+                    select.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    select.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+
+            quantityControlButtons.forEach(button => {
+                button.disabled = !isStoreOpenGlobally;
+                if (!isStoreOpenGlobally) {
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
+                    button.classList.remove('hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                } else {
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    button.classList.add('hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                }
+            });
+
+            if (placeOrderButton) {
+                placeOrderButton.disabled = !isStoreOpenGlobally;
+                if (!isStoreOpenGlobally) {
+                    placeOrderButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    placeOrderButton.classList.remove('hover:bg-green-600', 'hover:-translate-y-1');
+                } else {
+                    placeOrderButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    placeOrderButton.classList.add('hover:bg-green-600', 'hover:-translate-y-1');
+                }
+            }
+            if (clearCartButton) {
+                clearCartButton.disabled = !isStoreOpenGlobally; // Optionally disable clear cart too
+                if (!isStoreOpenGlobally) {
+                    clearCartButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    clearCartButton.classList.remove('hover:bg-red-600', 'hover:-translate-y-1');
+                } else {
+                    clearCartButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    clearCartButton.classList.add('hover:bg-red-600', 'hover:-translate-y-1');
+                }
+            }
+            if (confirmOrderButton) {
+                confirmOrderButton.disabled = !isStoreOpenGlobally;
+                if (!isStoreOpenGlobally) {
+                    confirmOrderButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    confirmOrderButton.classList.remove('hover:bg-green-600', 'hover:-translate-y-1');
+                } else {
+                    confirmOrderButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    confirmOrderButton.classList.add('hover:bg-green-600', 'hover:-translate-y-1');
+                }
+            }
+        }
+
+
         // --- Event Listeners ---
 
         // Navigation buttons
@@ -1634,8 +1810,9 @@
         document.getElementById('submit-review-button').addEventListener('click', redirectToGoogleReview);
 
         // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchMenuItems();
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchStoreStatus(); // Fetch store status first
+            fetchMenuItems(); // Then fetch menu items
             updateCartCounts();
             showPage(currentPage); // Ensure the correct page is displayed on load
         });
