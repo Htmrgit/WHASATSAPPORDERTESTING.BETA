@@ -226,7 +226,7 @@
             color: #cbd5e1; /* Reset on hover for entire group */
         }
         .star-rating input[type="radio"]:checked + label,
-        .star-rating input[type="radio"]:checked + label ~ label {
+        .star-rating input[type="radio"]:checked ~ label {
             color: #fbbf24;
         }
 
@@ -474,6 +474,11 @@
                 </button>
             </div>
 
+            <!-- Loading Spinner for Reviews -->
+            <div id="review-loading-spinner-container" class="flex justify-center items-center py-10 hidden">
+                <div class="spinner"></div>
+            </div>
+
             <!-- Existing Reviews Section (will be dynamically loaded) -->
             <div id="existing-reviews-container" class="space-y-6 max-w-2xl mx-auto">
                 <p id="no-reviews-message" class="text-center text-lg text-gray-600 dark:text-gray-300 hidden">No reviews yet. Be the first to leave one!</p>
@@ -636,9 +641,9 @@
         const GOOGLE_APPS_SCRIPT_MENU_URL ='https://script.google.com/macros/s/AKfycby-lPu5QxuUU7OPtCyJr29ezXMXcQEKush8wjBrTmc2_Yu6_K0RTuiRA3-momVpQpZI/exec';
 
         // IMPORTANT: This URL is for your deployed Google Apps Script web app for fetching reviews.
-        const GOOGLE_SHEET_REVIEW_SCRIPT_URL='https://script.google.com/macros/s/AKfycbyKJXG8zbDgSCgmDQg15oYpyEqQCtvXdcGqvn0_fmmO0z8qPsgkjrdvKGGxIUupiAM/exec';
+        const GOOGLE_SHEET_REVIEW_SCRIPT_URL ='https://script.google.com/macros/s/AKfycby02nwldgdtxqFBQw_dNBfc5XaFiDV406nXZjQUWserKbF2Q2jU14ibVcrlTY0FMo8/exec'; // Updated URL
 
-        // Google Reviews URL for direct user feedback
+        // Google Reviews URL for direct user feedback (Corrected to a search link that leads to reviews)
         const GOOGLE_RESTAURANT_REVIEW_URL = "https://www.google.com/search?q=deepanshu+restaurant+indirapuram&rlz=1C1CHBD_enIN1148IN1148&oq=deepanshu+restau&gs_lcrp=EgZjaHJvbWUqDwgAECMYJxjjAhiABBiKBTIPCAAQIxgnGOMCGIAEGIoFMhUIARAuGCcYrwEYxwEYgAQYigUYjgUyBggCEEUYOTIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIGCAYQRRg9MgYIBxBFGD3SAQg2OTU2ajBqN6gCALACAA&sourceid=chrome&ie=UTF8#lrd=0x390cfaba75e4782d:0xeff84a57b3d7cf6a,3,,,,";
 
         // --- DOM Element References ---
@@ -686,6 +691,12 @@
         const confirmationModalMessage = document.getElementById('confirmation-modal-message');
         const confirmYesButton = document.getElementById('confirm-yes-button');
         const confirmNoButton = document.getElementById('confirm-no-button');
+
+        // Review page specific elements
+        const reviewLoadingSpinnerContainer = document.getElementById('review-loading-spinner-container');
+        const existingReviewsContainer = document.getElementById('existing-reviews-container');
+        const noReviewsMessage = document.getElementById('no-reviews-message');
+
 
         // --- Utility Functions ---
 
@@ -1387,7 +1398,7 @@
 
             cartItems = []; // Clear cart after placing order
             saveCart();
-            renderCart();
+            renderCart();  
             updateCartCounts();
             closeOrderModal();
             showToast('Order placed successfully! Redirecting to WhatsApp.', 'success');
@@ -1507,45 +1518,68 @@
          * Loads and displays existing reviews. (This is a placeholder, as actual reviews would come from a backend)
          */
         async function loadReviews() {
-            const existingReviewsContainer = document.getElementById('existing-reviews-container');
-            const noReviewsMessage = document.getElementById('no-reviews-message');
-
             existingReviewsContainer.innerHTML = ''; // Clear previous reviews
             noReviewsMessage.classList.add('hidden'); // Hide message initially
+            reviewLoadingSpinnerContainer.classList.remove('hidden'); // Show spinner
+
+            console.log('[loadReviews] Attempting to fetch reviews from:', GOOGLE_SHEET_REVIEW_SCRIPT_URL);
 
             try {
                 const response = await fetch(GOOGLE_SHEET_REVIEW_SCRIPT_URL);
+                console.log('[loadReviews] Fetch response received:', response);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text(); // Get raw text for more info
+                    console.error(`[loadReviews] HTTP error! Status: ${response.status}, Status Text: ${response.statusText}, Response Body: ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status}. Check Apps Script deployment and permissions.`);
                 }
-                const data = await response.json();
-                console.log('Fetched reviews data:', data); // Log fetched data for debugging reviews
+
+                let data;
+                try {
+                    data = await response.json();
+                    console.log('[loadReviews] Fetched reviews data (parsed JSON):', data);
+                } catch (jsonError) {
+                    const rawText = await response.text();
+                    console.error('[loadReviews] JSON parsing error:', jsonError);
+                    console.error('[loadReviews] Raw response text that caused JSON error:', rawText);
+                    throw new Error('Invalid JSON response from review script. Check script output format.');
+                }
 
                 if (data && Array.isArray(data.reviews) && data.reviews.length > 0) {
+                    console.log(`[loadReviews] Found ${data.reviews.length} reviews.`);
                     data.reviews.forEach(review => {
-                        const reviewElement = document.createElement('div');
-                        reviewElement.className = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700';
-                        reviewElement.innerHTML = `
-                            <div class="flex items-center mb-2">
-                                <span class="font-semibold text-gray-800 dark:text-white mr-2">${review.name}</span>
-                                <span class="text-yellow-500 flex items-center">
-                                    ${'<span data-lucide="star" class="w-4 h-4 fill-current"></span>'.repeat(review.rating)}
-                                    ${'<span data-lucide="star" class="w-4 h-4 text-gray-300"></span>'.repeat(5 - review.rating)}
-                                </span>
-                            </div>
-                            <p class="text-gray-700 dark:text-gray-300 text-sm">${review.comment}</p>
-                        `;
-                        existingReviewsContainer.appendChild(reviewElement);
+                        // Basic validation for review structure
+                        // Ensure 'name', 'rating', 'comment' (from 'Review' header) are present and correct types
+                        if (typeof review.name === 'string' && typeof review.rating === 'number' && typeof review.review === 'string') {
+                            const reviewElement = document.createElement('div');
+                            reviewElement.className = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700';
+                            reviewElement.innerHTML = `
+                                <div class="flex items-center mb-2">
+                                    <span class="font-semibold text-gray-800 dark:text-white mr-2">${review.name}</span>
+                                    <span class="text-yellow-500 flex items-center">
+                                        ${'<span data-lucide="star" class="w-4 h-4 fill-current"></span>'.repeat(review.rating)}
+                                        ${'<span data-lucide="star" class="w-4 h-4 text-gray-300"></span>'.repeat(5 - review.rating)}
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 dark:text-gray-300 text-sm">${review.review}</p> <!-- Changed review.comment to review.review -->
+                            `;
+                            existingReviewsContainer.appendChild(reviewElement);
+                        } else {
+                            console.warn('[loadReviews] Skipping malformed review data:', review);
+                        }
                     });
                     lucide.createIcons(); // Re-create icons for new review stars
                 } else {
+                    console.log('[loadReviews] No reviews found or data.reviews is not an array/is empty.');
                     noReviewsMessage.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error('Error fetching reviews:', error);
-                noReviewsMessage.textContent = 'Failed to load reviews. Please try again later.';
+                console.error('[loadReviews] Error fetching or processing reviews:', error);
+                noReviewsMessage.textContent = `Failed to load reviews: ${error.message}. Please try again later.`;
                 noReviewsMessage.classList.remove('hidden');
-                showToast('Failed to load reviews.', 'error');
+                showToast(`Failed to load reviews: ${error.message}`, 'error');
+            } finally {
+                reviewLoadingSpinnerContainer.classList.add('hidden'); // Hide spinner
             }
         }
 
